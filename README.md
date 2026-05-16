@@ -1,50 +1,63 @@
-# ESP32 Sound Box
+# Kai Sound Local
 
 Version: `1.0.0-local`
 
-一个本地局域网版本的 ESP32 小喇叭项目。网页通过 PHP 接口发布 MQTT 命令，ESP32 订阅命令后通过 I2S 功放播放网络 MP3/WAV 音频。
+这是一个本地局域网版本的 ESP32 小喇叭项目。网页通过 PHP HTTP 接口发布 MQTT 命令，ESP32 订阅命令后通过 MAX98357A I2S 功放播放网络 MP3/WAV 音频。
 
 ## 功能
 
 - ESP32 连接 WiFi 和 MQTT Broker。
-- 网页发送播放、暂停、停止、音量、测试音命令。
+- 网页发送播放 URL、暂停、停止、音量、测试音命令。
 - 支持播放 `http://` 直链 MP3/WAV。
-- ESP32 上报 status 和 heartbeat，便于调试。
-- 本地 PHP 页面提供简单控制面板。
+- 提供本地测试音，用于排查 I2S 接线和功放问题。
+- PHP 页面只负责发命令，不依赖设备在线状态。
 
-## 项目结构
+## 硬件推荐
 
-```text
-sound/
-├─ arduino/sound/sound.ino       # ESP32 固件
-├─ php-server/                   # PHP 控制页面和 HTTP API
-│  ├─ public/index.html          # 控制页面
-│  ├─ public/api/command.php     # HTTP -> MQTT 命令接口
-│  └─ config.php                 # MQTT 和 topic 配置
-├─ docs/mqtt-protocol.md         # MQTT 协议说明
-├─ mosquitto-dev.conf            # 本地 Mosquitto 开发配置
-└─ README.md
-```
+以下图片是本项目使用的硬件参考：
 
-## 硬件
+![ESP32 开发板](image/esp32.png)
+
+![喇叭/功放相关硬件](image/喇叭.png)
+
+![杜邦线](image/杜邦线.png)
 
 推荐硬件：
 
 - ESP32 开发板
 - MAX98357A I2S 功放模块
 - 4Ω/8Ω 喇叭
+- 杜邦线
 
-默认接线：
+## 接线说明
 
-| MAX98357A | ESP32 |
-| --- | --- |
-| DIN | GPIO25 |
-| BCLK | GPIO27 |
-| LRC / WS | GPIO26 |
-| GND | GND |
-| VIN | 5V |
+固件默认使用这 3 个 ESP32 GPIO 输出 I2S：
 
-如果模块有 `SD` / `EN` 引脚，请按模块说明接高电平启用。
+| ESP32 引脚 | MAX98357A 引脚 | 说明 |
+| --- | --- | --- |
+| GPIO25 | DIN | 音频数据 |
+| GPIO27 | BCLK | I2S 位时钟 |
+| GPIO26 | LRC / WS | 左右声道时钟 |
+| GND | GND | 共地 |
+| 5V | VIN | 功放供电 |
+
+如果 MAX98357A 模块有 `SD` / `EN` 引脚，请按模块说明接高电平启用。喇叭要接到 MAX98357A 的喇叭输出端，不要直接接 ESP32。
+
+## 项目结构
+
+```text
+sound/
+├─ arduino/sound/sound.ino       # ESP32 固件
+├─ image/                        # 硬件参考图片
+├─ php-server/                   # PHP 控制页面和 HTTP API
+│  ├─ public/index.html          # 控制页面
+│  ├─ public/api/command.php     # HTTP -> MQTT 命令接口
+│  ├─ composer.json              # PHP 依赖
+│  └─ config.php                 # MQTT 和 topic 配置
+├─ docs/                         # 项目文档
+├─ mosquitto-dev.conf            # 本地 Mosquitto 开发配置
+└─ README.md
+```
 
 ## ESP32 配置
 
@@ -54,7 +67,6 @@ sound/
 const char* WIFI_SSID     = "YOUR_WIFI_SSID";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 const char* MQTT_BROKER   = "192.168.1.100";
-const char* TTS_SERVER    = "http://192.168.1.100:8080/tts.php";
 ```
 
 `MQTT_BROKER` 要填运行 Mosquitto 的电脑或服务器 IP。不要填 `127.0.0.1`，因为对 ESP32 来说那是它自己。
@@ -68,7 +80,7 @@ Arduino 依赖库：
 
 ## 本地启动
 
-安装并启动 Mosquitto：
+启动 Mosquitto：
 
 ```powershell
 cd D:\project\sound
@@ -119,7 +131,7 @@ http://你的电脑局域网IP:8000/1.mp3
 
 ## 支持和限制
 
-当前 1.0.0 本地版本支持：
+当前 `1.0.0-local` 支持：
 
 - `http://` MP3
 - `http://` WAV
@@ -130,7 +142,7 @@ http://你的电脑局域网IP:8000/1.mp3
 
 - 直接播放 `https://` 音频 URL
 - 直接播放 `.m4a`
-- 浏览器页面实时监听设备状态
+- 网页实时监听设备在线状态
 
 如果要播放 HTTPS 或 M4A，建议服务端先转码或代理成 `http://` MP3，再把 MP3 地址发给 ESP32。
 
@@ -174,4 +186,4 @@ http://你的电脑局域网IP:8000/1.mp3
 
 ## 版本说明
 
-`1.0.0-local` 是本地局域网可用版本，适合开发和家庭局域网使用。后续线上版本可以把 PHP 页面/API 和 MQTT Broker 部署到服务器，但 ESP32 音频播放地址仍建议提供 `http://` MP3/WAV 直链。
+`1.0.0-local` 是本地局域网可用版本，适合开发和家庭局域网使用。后续如果部署线上，后台页面/API 可以使用 HTTPS，但 ESP32 音频播放地址仍建议提供 `http://` MP3/WAV 直链。

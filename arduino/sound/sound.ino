@@ -17,10 +17,6 @@ const char* MQTT_BROKER = "192.168.1.100";
 const int   MQTT_PORT   = 1883;
 const char* DEVICE_ID   = "esp32_01";
 
-// Optional TTS HTTP endpoint. If your PHP service only sends audio URLs,
-// leave this as-is and send {"cmd":"play","url":"http://.../xxx.mp3"}.
-const char* TTS_SERVER = "http://192.168.1.100:8080/tts.php";
-
 // ==================== I2S Speaker (MAX98357A) ====================
 #define I2S_DOUT 25
 #define I2S_BCLK 27
@@ -337,25 +333,6 @@ void sendHeartbeat() {
 }
 
 // ==================== Helpers ====================
-String urlEncode(const char* src) {
-  String encoded = "";
-  char hex[4];
-
-  for (size_t i = 0; i < strlen(src); i++) {
-    unsigned char c = (unsigned char)src[i];
-    if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
-      encoded += (char)c;
-    } else if (c == ' ') {
-      encoded += '+';
-    } else {
-      snprintf(hex, sizeof(hex), "%%%02X", c);
-      encoded += hex;
-    }
-  }
-
-  return encoded;
-}
-
 JsonObject commandParams(JsonDocument& doc) {
   if (doc["params"].is<JsonObject>()) {
     return doc["params"].as<JsonObject>();
@@ -368,16 +345,11 @@ void executeCommand(const char* cmd, JsonObject params) {
   Serial.printf("[Cmd] %s\n", cmd);
 
   if (strcmp(cmd, "play") == 0) {
-    const char* text = params["text"] | "";
     const char* url  = params["url"]  | "";
 
     if (strlen(url) > 0) {
-      currentText = params["text"] | "";
+      currentText = "";
       playUrl(url);
-    } else if (strlen(text) > 0) {
-      String ttsUrl = String(TTS_SERVER) + "?text=" + urlEncode(text);
-      currentText = text;
-      playUrl(ttsUrl.c_str());
     } else if (audioPaused) {
       setPaused(false);
     }

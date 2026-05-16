@@ -173,11 +173,6 @@ input[type="url"] {
     <button class="speak" id="btnPlayUrl">播放 URL</button>
   </section>
 
-  <section class="card">
-    <textarea id="ttsText" placeholder="输入要播放的文字。注意：如果没有 tts.php 接口，ESP32 收到文字后会请求该接口但可能无法播放。"></textarea>
-    <button class="speak" id="btnSpeak">播放文字</button>
-  </section>
-
   <p class="hint">这个页面不监听设备状态。ESP32 当前只支持 http:// 的 MP3/WAV 直连播放；https:// 或 m4a 建议先在服务端转成 MP3。</p>
 </main>
 
@@ -232,12 +227,7 @@ document.getElementById('volumeSlider').addEventListener('input', function() {
 });
 
 document.getElementById('btnPlay').addEventListener('click', function() {
-  const text = document.getElementById('ttsText').value.trim();
-  if (text) {
-    sendCommand('play', { text: text });
-  } else {
-    sendCommand('resume');
-  }
+  sendCommand('resume');
 });
 
 document.getElementById('btnPause').addEventListener('click', function() {
@@ -256,13 +246,6 @@ document.getElementById('btnPlayUrl').addEventListener('click', function() {
   const url = document.getElementById('audioUrl').value.trim();
   if (url) {
     sendCommand('play', { url: url });
-  }
-});
-
-document.getElementById('btnSpeak').addEventListener('click', function() {
-  const text = document.getElementById('ttsText').value.trim();
-  if (text) {
-    sendCommand('play', { text: text });
   }
 });
 </script>
