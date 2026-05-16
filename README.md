@@ -2,15 +2,38 @@
 
 Version: `1.0.0-local`
 
-这是一个本地局域网版本的 ESP32 小喇叭项目。网页通过 PHP HTTP 接口发布 MQTT 命令，ESP32 订阅命令后通过 MAX98357A I2S 功放播放网络 MP3/WAV 音频。
+Kai Sound Local 是一个本地局域网版本的 ESP32 小喇叭项目。网页通过 PHP HTTP 接口发布 MQTT 命令，ESP32 订阅命令后通过 MAX98357A I2S 功放播放网络 MP3/WAV 音频。
 
 ## 功能
 
 - ESP32 连接 WiFi 和 MQTT Broker。
-- 网页发送播放 URL、暂停、停止、音量、测试音命令。
+- 本地网页发送播放 URL、暂停、停止、音量、测试音命令。
 - 支持播放 `http://` 直链 MP3/WAV。
 - 提供本地测试音，用于排查 I2S 接线和功放问题。
-- PHP 页面只负责发命令，不依赖设备在线状态。
+- 页面只负责发送命令，不依赖设备在线状态。
+
+## 运行环境
+
+本地运行需要：
+
+- PHP `8.0+`
+- Composer
+- Mosquitto MQTT Broker
+- Arduino IDE 或 Arduino CLI
+- ESP32 Arduino board package
+
+PHP 依赖通过 Composer 安装：
+
+```powershell
+cd D:\project\sound\php-server
+composer install
+```
+
+Arduino 依赖库：
+
+- PubSubClient
+- ArduinoJson
+- ESP8266Audio
 
 ## 硬件推荐
 
@@ -54,7 +77,6 @@ sound/
 │  ├─ public/api/command.php     # HTTP -> MQTT 命令接口
 │  ├─ composer.json              # PHP 依赖
 │  └─ config.php                 # MQTT 和 topic 配置
-├─ docs/                         # 项目文档
 ├─ mosquitto-dev.conf            # 本地 Mosquitto 开发配置
 └─ README.md
 ```
@@ -71,31 +93,29 @@ const char* MQTT_BROKER   = "192.168.1.100";
 
 `MQTT_BROKER` 要填运行 Mosquitto 的电脑或服务器 IP。不要填 `127.0.0.1`，因为对 ESP32 来说那是它自己。
 
-Arduino 依赖库：
-
-- ESP32 board package
-- PubSubClient
-- ArduinoJson
-- ESP8266Audio
-
 ## 本地启动
 
-启动 Mosquitto：
+1. 启动 Mosquitto：
 
 ```powershell
 cd D:\project\sound
 mosquitto -c .\mosquitto-dev.conf -v
 ```
 
-启动 PHP 页面和接口：
+2. 安装 PHP 依赖：
 
 ```powershell
 cd D:\project\sound\php-server
 composer install
+```
+
+3. 启动 PHP 页面和接口：
+
+```powershell
 php -S 0.0.0.0:8000 -t public
 ```
 
-浏览器打开：
+4. 打开网页：
 
 ```text
 http://127.0.0.1:8000
