@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESP32 Speaker Control</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  background: #121722;
+  color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  padding: 32px 16px;
+}
+.wrap { width: 100%; max-width: 620px; margin: 0 auto; }
+h1 { text-align: center; font-size: 26px; margin-bottom: 8px; }
+.sub { text-align: center; color: #94a3b8; margin-bottom: 24px; }
+.status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; }
+.dot.error { background: #ef4444; }
+.card {
+  background: #202738;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.name { font-size: 20px; font-weight: 700; }
+.id { color: #cbd5e1; font: 13px Consolas, monospace; margin-top: 4px; }
+.badge {
+  background: rgba(34, 197, 94, .16);
+  color: #86efac;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid #374151;
+}
+.row:last-child { border-bottom: 0; }
+.label { color: #94a3b8; }
+.value { text-align: right; font-weight: 650; }
+.volume {
+  display: grid;
+  grid-template-columns: 44px 1fr 48px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #374151;
+}
+input[type="range"] { width: 100%; }
+.state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0 8px;
+}
+.state-dot { width: 8px; height: 8px; border-radius: 50%; background: #64748b; }
+.bar { height: 5px; background: #111827; border-radius: 999px; overflow: hidden; }
+.fill { height: 100%; width: 0%; background: #3b82f6; }
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 12px;
+  color: #fff;
+  font-weight: 750;
+  cursor: pointer;
+}
+button:disabled { opacity: .55; cursor: not-allowed; }
+.primary { background: #2563eb; }
+.warning { background: #b45309; }
+.danger { background: #dc2626; }
+.speak { background: #16a34a; width: 100%; margin-top: 12px; }
+textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  background: #111827;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  color: #f8fafc;
+  padding: 12px;
+  font: inherit;
+  line-height: 1.5;
+}
+input[type="url"] {
+  width: 100%;
+  background: #111827;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  color: #f8fafc;
+  padding: 12px;
+  font: inherit;
+}
+.hint { color: #94a3b8; font-size: 13px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>ESP32 小喇叭</h1>
+  <p class="sub">HTTP API -> PHP -> MQTT</p>
+
+  <div class="status">
+    <span class="dot" id="apiDot"></span>
+    <span id="apiStatus">命令接口就绪</span>
+  </div>
+
+  <section class="card">
+    <div class="head">
+      <div>
+        <div class="name">小喇叭</div>
+        <div class="id">ID: esp32_01</div>
+      </div>
+      <div class="badge">直接发送命令</div>
+    </div>
+
+    <div class="row">
+      <span class="label">MQTT Topic</span>
+      <span class="value">device/esp32_01/command</span>
+    </div>
+    <div class="row">
+      <span class="label">发送方式</span>
+      <span class="value">/api/command.php</span>
+    </div>
+
+    <div class="volume">
+      <span class="label">音量</span>
+      <input type="range" id="volumeSlider" min="0" max="100" value="80">
+      <span class="value" id="volumeValue">80%</span>
+    </div>
+
+    <div class="state">
+      <span class="state-dot"></span>
+      <span id="lastCommand">等待操作</span>
+    </div>
+    <div class="bar"><div class="fill"></div></div>
+
+    <div class="actions">
+      <button class="primary" id="btnPlay">播放</button>
+      <button class="warning" id="btnPause">暂停</button>
+      <button class="danger" id="btnStop">停止</button>
+    </div>
+    <button class="speak" id="btnTone">测试音</button>
+  </section>
+
+  <section class="card">
+    <input id="audioUrl" type="url" placeholder="输入 http:// 开头的 MP3/WAV URL，例如 http://192.168.1.100:8000/audio/test.mp3">
+    <button class="speak" id="btnPlayUrl">播放 URL</button>
+  </section>
+
+  <section class="card">
+    <textarea id="ttsText" placeholder="输入要播放的文字。注意：如果没有 tts.php 接口，ESP32 收到文字后会请求该接口但可能无法播放。"></textarea>
+    <button class="speak" id="btnSpeak">播放文字</button>
+  </section>
+
+  <p class="hint">这个页面不监听设备状态。ESP32 当前只支持 http:// 的 MP3/WAV 直连播放；https:// 或 m4a 建议先在服务端转成 MP3。</p>
+</main>
+
+<script>
+const DEFAULT_DEVICE_ID = 'esp32_01';
+let volumeTimer = null;
+
+function setApiState(ok, text) {
+  document.getElementById('apiDot').className = ok ? 'dot' : 'dot error';
+  document.getElementById('apiStatus').textContent = text;
+}
+
+function setLastCommand(text) {
+  document.getElementById('lastCommand').textContent = text;
+}
+
+async function sendCommand(cmd, params) {
+  setApiState(true, '发送中...');
+
+  try {
+    const response = await fetch('/api/command.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        device_id: DEFAULT_DEVICE_ID,
+        cmd: cmd,
+        params: params || {}
+      })
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || '发送失败');
+    }
+
+    setApiState(true, '命令已发送');
+    setLastCommand(cmd);
+    console.log('[MQTT]', result);
+  } catch (err) {
+    setApiState(false, '发送失败：' + err.message);
+    console.error(err);
+  }
+}
+
+document.getElementById('volumeSlider').addEventListener('input', function() {
+  const volume = parseInt(this.value, 10);
+  document.getElementById('volumeValue').textContent = volume + '%';
+  if (volumeTimer) clearTimeout(volumeTimer);
+  volumeTimer = setTimeout(function() {
+    sendCommand('volume', { value: volume });
+  }, 200);
+});
+
+document.getElementById('btnPlay').addEventListener('click', function() {
+  const text = document.getElementById('ttsText').value.trim();
+  if (text) {
+    sendCommand('play', { text: text });
+  } else {
+    sendCommand('resume');
+  }
+});
+
+document.getElementById('btnPause').addEventListener('click', function() {
+  sendCommand('pause');
+});
+
+document.getElementById('btnStop').addEventListener('click', function() {
+  sendCommand('stop');
+});
+
+document.getElementById('btnTone').addEventListener('click', function() {
+  sendCommand('tone', { freq: 1000, duration: 1200 });
+});
+
+document.getElementById('btnPlayUrl').addEventListener('click', function() {
+  const url = document.getElementById('audioUrl').value.trim();
+  if (url) {
+    sendCommand('play', { url: url });
+  }
+});
+
+document.getElementById('btnSpeak').addEventListener('click', function() {
+  const text = document.getElementById('ttsText').value.trim();
+  if (text) {
+    sendCommand('play', { text: text });
+  }
+});
+</script>
+</body>
+</html>

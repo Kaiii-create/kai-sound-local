@@ -1,0 +1,14 @@
+{
+    "name": "sound/php-server",
+    "description": "ESP32 Sound Box - PHP HTTP API and MQTT bridge",
+    "require": {
+        "php": ">=7.4",
+        "cboden/ratchet": "^0.4",
+        "php-mqtt/client": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Sound\\": "src/"
+        }
+    }
+}
